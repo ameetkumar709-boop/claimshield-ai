@@ -3937,13 +3937,6 @@ window.addEventListener('DOMContentLoaded', () => {
 // Google SSO & Authentication
 // ============================================================================
 function initGoogleButton() {
-    // Show hosted auth notice if not on localhost
-    const isHosted = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-    const hostedNotice = document.getElementById('hosted-auth-notice');
-    if (isHosted && hostedNotice) {
-        hostedNotice.style.display = 'block';
-    }
-
     try {
         if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
             google.accounts.id.initialize({
