@@ -397,7 +397,8 @@ class ClaimShieldAIService:
             denial_reason = info["denial_reason"]
             denied_amount = info["denied_amount"]
             
-            is_lumbar = "lumbar" in context.lower() or "spine" in context.lower() or "conservative" in context.lower() or "imaging" in context.lower()
+            is_cardiac = "cardiac" in context.lower() or "chest pain" in context.lower() or "troponin" in context.lower() or "myocardial" in context.lower() or "ekg" in context.lower() or "heart" in context.lower()
+            is_lumbar = not is_cardiac
             
             if is_lumbar:
                 if "why" in q_lower or "denied" in q_lower or "reason" in q_lower:
@@ -413,6 +414,58 @@ class ClaimShieldAIService:
                 elif "cpt" in q_lower or "procedure" in q_lower:
                     return f"The procedure under review is CPT 72148 (MRI Lumbar Spine Without Contrast) carrying a denied charge of {denied_amount}."
                 else:
+                    # Attempt to find a sentence in the context that answers the question dynamically
+                    stopwords = {
+                        'what', 'is', 'the', 'a', 'of', 'to', 'for', 'in', 'on', 'why', 'how', 'does', 'do',
+                        'did', 'can', 'should', 'would', 'will', 'an', 'and', 'or', 'but', 'if', 'then', 'else',
+                        'this', 'that', 'these', 'those', 'who', 'whom', 'whose', 'which', 'where', 'when',
+                        'are', 'was', 'were', 'been', 'be', 'has', 'have', 'had', 'having', 'with', 'about',
+                        'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below',
+                        'from', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once'
+                    }
+                    q_words = [w.strip("?,.:;\"'()").lower() for w in question.split()]
+                    q_keywords = [w for w in q_words if w and w not in stopwords]
+                    
+                    synonyms = {
+                        'symptom': ['pain', 'numbness', 'tingling', 'radiculopathy', 'weakness', 'symptom', 'condition', 'complaint'],
+                        'symptoms': ['pain', 'numbness', 'tingling', 'radiculopathy', 'weakness', 'symptom', 'condition', 'complaint'],
+                        'duration': ['months', 'weeks', 'days', 'years', 'month', 'week', 'day', 'year', 'for ', 'since', 'long'],
+                        'treatment': ['therapy', 'pt', 'medication', 'ibuprofen', 'exercise', 'conservative', 'treatment', 'management'],
+                        'treatments': ['therapy', 'pt', 'medication', 'ibuprofen', 'exercise', 'conservative', 'treatment', 'management'],
+                        'failed': ['fail', 'worse', 'no relief', 'despite', 'not demonstrate', 'denied'],
+                        'procedure': ['mri', 'spine', 'cpt', '72148', 'imaging', 'scan', 'procedure']
+                    }
+                    
+                    sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', context) if s.strip()]
+                    best_s = None
+                    max_score = 0
+                    for s in sentences:
+                        s_lower = s.lower()
+                        score = 0
+                        for kw in q_keywords:
+                            if re.search(r'\b' + re.escape(kw) + r'\b', s_lower):
+                                score += 2
+                            elif kw in s_lower:
+                                score += 1
+                            elif kw in synonyms:
+                                if any(syn in s_lower for syn in synonyms[kw]):
+                                    score += 1
+                        
+                        # Boost score if sentence contains numbers/time periods when asking about duration/when/how long/amount
+                        if score > 0:
+                            if any(w in q_lower for w in ["duration", "how long", "period", "time", "months", "weeks", "days", "years"]):
+                                if any(x in s_lower for x in ["month", "week", "day", "year", "since", "for ", "ago"]):
+                                    score += 2
+                            if any(w in q_lower for w in ["amount", "cost", "charge", "price", "fee"]):
+                                if "$" in s_lower or any(char.isdigit() for char in s_lower):
+                                    score += 2
+                        
+                        if score > max_score:
+                            max_score = score
+                            best_s = s
+                            
+                    if max_score >= 2 and best_s:
+                        return best_s
                     return f"Based on the clinical context provided for the denial (Payer: {payer}, Amount: {denied_amount}), the patient's records indicate a denial reason: '{denial_reason}'. The documentation shows the patient completed physical therapy and conservative treatments, which can be used as evidence to appeal this decision."
             else:
                 if "why" in q_lower or "denied" in q_lower or "reason" in q_lower:

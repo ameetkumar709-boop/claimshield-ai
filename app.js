@@ -222,7 +222,7 @@ function initAuth() {
             updateUserUI();
             
             // Sync profile from backend database and then hydrate DB
-            fetch("http://localhost:8000/api/users/me?cb=" + Date.now(), {
+            fetch("/api/users/me?cb=" + Date.now(), {
                 headers: { 'Authorization': 'Bearer ' + token }
             }).then(meRes => {
                 if (meRes.ok) {
@@ -356,7 +356,7 @@ function setupRoleSwitcher() {
         
         // Logged in: Call backend switch-role API
         try {
-            const res = await fetch("http://localhost:8000/api/auth/switch-role", {
+            const res = await fetch("/api/auth/switch-role", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -562,7 +562,7 @@ function renderDashboard() {
     
     // Fetch Disaster Recovery status from backend
     if (AppState.sessionToken) {
-        fetch("http://localhost:8000/api/recovery/status", {
+        fetch("/api/recovery/status", {
             headers: { 'Authorization': 'Bearer ' + AppState.sessionToken }
         })
         .then(res => {
@@ -763,7 +763,7 @@ async function submitDraftForReview(appealId) {
     const headers = token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
 
     try {
-        const res = await fetch(`http://localhost:8000/api/appeals/${appealId}`, {
+        const res = await fetch(`/api/appeals/${appealId}`, {
             method: "PUT",
             headers,
             body: JSON.stringify({ 
@@ -1094,7 +1094,7 @@ async function handleUploadedFile(file) {
     }
     
     try {
-        const res = await fetch("http://localhost:8000/api/upload", {
+        const res = await fetch("/api/upload", {
             method: "POST",
             headers: headers,
             body: formData
@@ -1110,14 +1110,14 @@ async function handleUploadedFile(file) {
         
         const pollInterval = setInterval(async () => {
             try {
-                const checkRes = await fetch(`http://localhost:8000/api/documents/${docId}/extraction`, {
+                const checkRes = await fetch(`/api/documents/${docId}/extraction`, {
                     headers: headers
                 });
                 if (!checkRes.ok) return;
                 
                 const docDetails = await checkRes.json();
                 
-                const docListRes = await fetch("http://localhost:8000/api/documents", { headers: headers });
+                const docListRes = await fetch("/api/documents", { headers: headers });
                 if (!docListRes.ok) return;
                 
                 const docs = await docListRes.json();
@@ -1229,7 +1229,7 @@ async function submitIntake() {
                 insurance_provider: payer,
                 insurance_policy_number: `POL-${Math.floor(10000 + Math.random() * 90000)}`
             };
-            const pRes = await fetch("http://localhost:8000/api/patients", {
+            const pRes = await fetch("/api/patients", {
                 method: "POST",
                 headers: headers,
                 body: JSON.stringify(newPatient)
@@ -1248,7 +1248,7 @@ async function submitIntake() {
             amount_paid: 0.00,
             status: "Denied"
         };
-        const cRes = await fetch("http://localhost:8000/api/claims", {
+        const cRes = await fetch("/api/claims", {
             method: "POST",
             headers: headers,
             body: JSON.stringify(newClaim)
@@ -1271,7 +1271,7 @@ async function submitIntake() {
             status: "New",
             assigned_to: AppState.currentUser ? AppState.currentUser.id : "u-1"
         };
-        const dRes = await fetch("http://localhost:8000/api/denials", {
+        const dRes = await fetch("/api/denials", {
             method: "POST",
             headers: headers,
             body: JSON.stringify(newDenial)
@@ -1389,7 +1389,7 @@ async function generateAppealDraft(templateType) {
     };
     
     try {
-        const res = await fetch("http://localhost:8000/api/ai/appeal", {
+        const res = await fetch("/api/ai/appeal", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
@@ -1439,7 +1439,7 @@ async function submitAppealLetter() {
     try {
         if (token) {
             // Post appeal to backend
-            const appRes = await fetch("http://localhost:8000/api/appeals", {
+            const appRes = await fetch("/api/appeals", {
                 method: "POST",
                 headers,
                 body: JSON.stringify(newAppeal)
@@ -1447,7 +1447,7 @@ async function submitAppealLetter() {
             if (!appRes.ok) throw new Error("Failed to save appeal on backend: " + await appRes.text());
 
             // Update denial status
-            await fetch(`http://localhost:8000/api/denials/${selectedDenial.id}`, {
+            await fetch(`/api/denials/${selectedDenial.id}`, {
                 method: "PUT",
                 headers,
                 body: JSON.stringify({ status: "Appeal Drafted" })
@@ -1456,7 +1456,7 @@ async function submitAppealLetter() {
             // Update claim status
             const claim = AppState.db.claims.find(c => c.id === selectedDenial.claim_id);
             if (claim) {
-                await fetch(`http://localhost:8000/api/claims/${claim.id}`, {
+                await fetch(`/api/claims/${claim.id}`, {
                     method: "PUT",
                     headers,
                     body: JSON.stringify({ status: "Under Appeal" })
@@ -2125,9 +2125,9 @@ async function runDocumentIntelligenceWorkflow() {
     try {
         // 1. Fetch extractions in parallel
         const [denialRes, medicalRes, policyRes] = await Promise.all([
-            fetch(`http://localhost:8000/api/documents/${denialId}/extraction`, { headers }),
-            fetch(`http://localhost:8000/api/documents/${medicalId}/extraction`, { headers }),
-            fetch(`http://localhost:8000/api/documents/${policyId}/extraction`, { headers })
+            fetch(`/api/documents/${denialId}/extraction`, { headers }),
+            fetch(`/api/documents/${medicalId}/extraction`, { headers }),
+            fetch(`/api/documents/${policyId}/extraction`, { headers })
         ]);
 
         if (!denialRes.ok || !medicalRes.ok || !policyRes.ok) {
@@ -2173,7 +2173,7 @@ async function runDocumentIntelligenceWorkflow() {
         if (resScreen) resScreen.style.display = 'flex';
 
         // 3. Perform Evidence Mapping
-        const mapRes = await fetch("http://localhost:8000/api/ai/evidence-map", {
+        const mapRes = await fetch("/api/ai/evidence-map", {
             method: "POST",
             headers,
             body: JSON.stringify({
@@ -2261,7 +2261,7 @@ async function generateDocIntelAppeal() {
     const headers = token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
 
     try {
-        const res = await fetch("http://localhost:8000/api/ai/generate-appeal-advanced", {
+        const res = await fetch("/api/ai/generate-appeal-advanced", {
             method: "POST",
             headers,
             body: JSON.stringify({
@@ -2332,7 +2332,7 @@ async function saveIntelAppealToRegistry() {
                 amount_paid: 0.00,
                 status: "Denied"
             };
-            const cRes = await fetch("http://localhost:8000/api/claims", {
+            const cRes = await fetch("/api/claims", {
                 method: "POST",
                 headers,
                 body: JSON.stringify(claim)
@@ -2357,7 +2357,7 @@ async function saveIntelAppealToRegistry() {
                 status: "New",
                 assigned_to: AppState.currentUser ? AppState.currentUser.id : "u-1"
             };
-            const dRes = await fetch("http://localhost:8000/api/denials", {
+            const dRes = await fetch("/api/denials", {
                 method: "POST",
                 headers,
                 body: JSON.stringify(denial)
@@ -2382,7 +2382,7 @@ async function saveIntelAppealToRegistry() {
             status: AppState.currentUser && (AppState.currentUser.role === 'Physician' || AppState.currentUser.role === 'Admin') ? 'Pending Submission' : 'Physician Review Required'
         };
 
-        const appRes = await fetch("http://localhost:8000/api/appeals", {
+        const appRes = await fetch("/api/appeals", {
             method: "POST",
             headers,
             body: JSON.stringify(newAppeal)
@@ -2390,13 +2390,13 @@ async function saveIntelAppealToRegistry() {
         if (!appRes.ok) throw new Error("Failed to save appeal on backend: " + await appRes.text());
 
         // Update denial and claim statuses
-        await fetch(`http://localhost:8000/api/denials/${denial.id}`, {
+        await fetch(`/api/denials/${denial.id}`, {
             method: "PUT",
             headers,
             body: JSON.stringify({ status: "Appeal Drafted" })
         });
 
-        await fetch(`http://localhost:8000/api/claims/${claim.id}`, {
+        await fetch(`/api/claims/${claim.id}`, {
             method: "PUT",
             headers,
             body: JSON.stringify({ status: "Under Appeal" })
@@ -2443,7 +2443,7 @@ async function approveAppeal(appealId) {
     const headers = token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
 
     try {
-        const res = await fetch(`http://localhost:8000/api/appeals/${appealId}`, {
+        const res = await fetch(`/api/appeals/${appealId}`, {
             method: "PUT",
             headers,
             body: JSON.stringify({ 
@@ -2478,7 +2478,7 @@ async function submitAppealToPayer(appealId) {
 
     try {
         const trackingNum = `TRK-${Math.floor(100000000 + Math.random() * 900000000)}`;
-        const appRes = await fetch(`http://localhost:8000/api/appeals/${appealId}`, {
+        const appRes = await fetch(`/api/appeals/${appealId}`, {
             method: "PUT",
             headers,
             body: JSON.stringify({ 
@@ -2490,7 +2490,7 @@ async function submitAppealToPayer(appealId) {
         if (!appRes.ok) throw new Error("Failed to submit appeal.");
 
         if (denial) {
-            await fetch(`http://localhost:8000/api/denials/${denial.id}`, {
+            await fetch(`/api/denials/${denial.id}`, {
                 method: "PUT",
                 headers,
                 body: JSON.stringify({ status: "Appealed" })
@@ -2498,7 +2498,7 @@ async function submitAppealToPayer(appealId) {
         }
 
         if (claim) {
-            await fetch(`http://localhost:8000/api/claims/${claim.id}`, {
+            await fetch(`/api/claims/${claim.id}`, {
                 method: "PUT",
                 headers,
                 body: JSON.stringify({ status: "Under Appeal" })
@@ -2533,7 +2533,7 @@ async function simulatePayerDecision(appealId, outcome) {
         const recoveredAmt = outcome === 'Approved' ? deniedAmount : 0.00;
         const appealStatus = outcome === 'Approved' ? 'Approved' : 'Rejected';
 
-        const appRes = await fetch(`http://localhost:8000/api/appeals/${appealId}`, {
+        const appRes = await fetch(`/api/appeals/${appealId}`, {
             method: "PUT",
             headers,
             body: JSON.stringify({ 
@@ -2545,7 +2545,7 @@ async function simulatePayerDecision(appealId, outcome) {
         if (!appRes.ok) throw new Error("Failed to simulate payer decision.");
 
         if (denial) {
-            await fetch(`http://localhost:8000/api/denials/${denial.id}`, {
+            await fetch(`/api/denials/${denial.id}`, {
                 method: "PUT",
                 headers,
                 body: JSON.stringify({ status: "Resolved" })
@@ -2555,7 +2555,7 @@ async function simulatePayerDecision(appealId, outcome) {
         if (claim) {
             const claimStatus = outcome === 'Approved' ? 'Paid' : 'Denied';
             const amtPaid = outcome === 'Approved' ? deniedAmount : 0.00;
-            await fetch(`http://localhost:8000/api/claims/${claim.id}`, {
+            await fetch(`/api/claims/${claim.id}`, {
                 method: "PUT",
                 headers,
                 body: JSON.stringify({ status: claimStatus, amount_paid: amtPaid })
@@ -2588,7 +2588,7 @@ async function viewDocumentPreview(docId) {
     const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
 
     try {
-        const res = await fetch(`http://localhost:8000/api/documents/${docId}/extraction`, { headers });
+        const res = await fetch(`/api/documents/${docId}/extraction`, { headers });
         if (!res.ok) throw new Error("Failed to load document details");
         
         const data = await res.json();
@@ -2723,7 +2723,7 @@ async function handleUploadedClinicalFile(file) {
     }
     
     try {
-        const res = await fetch("http://localhost:8000/api/upload", {
+        const res = await fetch("/api/upload", {
             method: "POST",
             headers: headers,
             body: formData
@@ -2737,12 +2737,12 @@ async function handleUploadedClinicalFile(file) {
         
         const pollInterval = setInterval(async () => {
             try {
-                const checkRes = await fetch(`http://localhost:8000/api/documents/${docId}/extraction`, { headers });
+                const checkRes = await fetch(`/api/documents/${docId}/extraction`, { headers });
                 if (!checkRes.ok) return;
                 
                 const docDetails = await checkRes.json();
                 
-                const docListRes = await fetch("http://localhost:8000/api/documents", { headers });
+                const docListRes = await fetch("/api/documents", { headers });
                 if (!docListRes.ok) return;
                 
                 const docs = await docListRes.json();
@@ -2863,7 +2863,7 @@ async function submitClinicalIntake() {
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
             
-            const pRes = await fetch("http://localhost:8000/api/patients", {
+            const pRes = await fetch("/api/patients", {
                 method: "POST",
                 headers: headers,
                 body: JSON.stringify({
@@ -2903,7 +2903,7 @@ async function submitClinicalIntake() {
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = 'Bearer ' + token;
         
-        const res = await fetch("http://localhost:8000/api/medical_records", {
+        const res = await fetch("/api/medical_records", {
             method: "POST",
             headers: headers,
             body: JSON.stringify(payload)
@@ -3022,7 +3022,7 @@ async function handleUploadedPolicyFile(file) {
     }
     
     try {
-        const res = await fetch("http://localhost:8000/api/upload", {
+        const res = await fetch("/api/upload", {
             method: "POST",
             headers: headers,
             body: formData
@@ -3036,12 +3036,12 @@ async function handleUploadedPolicyFile(file) {
         
         const pollInterval = setInterval(async () => {
             try {
-                const checkRes = await fetch(`http://localhost:8000/api/documents/${docId}/extraction`, { headers });
+                const checkRes = await fetch(`/api/documents/${docId}/extraction`, { headers });
                 if (!checkRes.ok) return;
                 
                 const docDetails = await checkRes.json();
                 
-                const docListRes = await fetch("http://localhost:8000/api/documents", { headers });
+                const docListRes = await fetch("/api/documents", { headers });
                 if (!docListRes.ok) return;
                 
                 const docs = await docListRes.json();
@@ -3076,7 +3076,7 @@ async function handleUploadedPolicyFile(file) {
                             medical_necessity_requirements: ext.medical_necessity_requirements ? ext.medical_necessity_requirements.join('\n') : "Progress notes\nTreatment history\nPhysician recommendation"
                         };
                         
-                        const postRes = await fetch("http://localhost:8000/api/payer_policies", {
+                        const postRes = await fetch("/api/payer_policies", {
                             method: "POST",
                             headers: { 'Content-Type': 'application/json', ...headers },
                             body: JSON.stringify(policyPayload)
@@ -3397,7 +3397,7 @@ async function commitWorkflowToDB() {
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = 'Bearer ' + token;
         
-        const appRes = await fetch("http://localhost:8000/api/appeals", {
+        const appRes = await fetch("/api/appeals", {
             method: "POST",
             headers: headers,
             body: JSON.stringify({
@@ -3412,7 +3412,7 @@ async function commitWorkflowToDB() {
         
         if (!appRes.ok) throw new Error(await appRes.text());
         
-        await fetch(`http://localhost:8000/api/denials/${denialId}`, {
+        await fetch(`/api/denials/${denialId}`, {
             method: "PUT",
             headers: headers,
             body: JSON.stringify({ status: "Appeal Drafted" })
@@ -3527,7 +3527,7 @@ async function submitCopilotMessage() {
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = 'Bearer ' + token;
         
-        const res = await fetch("http://localhost:8000/api/ai/qa", {
+        const res = await fetch("/api/ai/qa", {
             method: "POST",
             headers: headers,
             body: JSON.stringify({
@@ -3655,7 +3655,7 @@ function copyN8NJSON() {
         name: title,
         nodes: [
             { type: "n8n-nodes-base.trigger", parameters: { path: "webhook" } },
-            { type: "n8n-nodes-base.httpRequest", parameters: { url: "http://localhost:8000/api/ai" } }
+            { type: "n8n-nodes-base.httpRequest", parameters: { url: "/api/ai" } }
         ],
         connections: {}
     };
@@ -3673,7 +3673,7 @@ function downloadN8NJSON() {
         name: title,
         nodes: [
             { type: "n8n-nodes-base.trigger", parameters: { path: "webhook" } },
-            { type: "n8n-nodes-base.httpRequest", parameters: { url: "http://localhost:8000/api/ai" } }
+            { type: "n8n-nodes-base.httpRequest", parameters: { url: "/api/ai" } }
         ],
         connections: {}
     };
@@ -3783,7 +3783,7 @@ async function triggerManualBackup() {
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = 'Bearer ' + token;
         
-        const res = await fetch("http://localhost:8000/api/recovery/backup", {
+        const res = await fetch("/api/recovery/backup", {
             method: "POST",
             headers: headers,
             body: JSON.stringify({ backup_type: "manual" })
@@ -3810,7 +3810,7 @@ async function triggerCloudRestore() {
         const headers = {};
         if (token) headers['Authorization'] = 'Bearer ' + token;
         
-        const res = await fetch("http://localhost:8000/api/recovery/restore", {
+        const res = await fetch("/api/recovery/restore", {
             method: "POST",
             headers: headers
         });
@@ -3933,6 +3933,13 @@ window.addEventListener('DOMContentLoaded', () => {
 // Google SSO & Authentication
 // ============================================================================
 function initGoogleButton() {
+    // Show hosted auth notice if not on localhost
+    const isHosted = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    const hostedNotice = document.getElementById('hosted-auth-notice');
+    if (isHosted && hostedNotice) {
+        hostedNotice.style.display = 'block';
+    }
+
     try {
         if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
             google.accounts.id.initialize({
@@ -3991,7 +3998,7 @@ function simulateGoogleLogin(roleKeyword) {
 
 async function authenticateToken(token) {
     try {
-        const res = await fetch("http://localhost:8000/api/auth/google", {
+        const res = await fetch("/api/auth/google", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ token: token })
@@ -4030,14 +4037,14 @@ async function loadDbFromBackend() {
         const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
         
         // Load documents list
-        const docRes = await fetch("http://localhost:8000/api/documents", { headers: headers });
+        const docRes = await fetch("/api/documents", { headers: headers });
         if (docRes.ok) {
             AppState.db.documents = await docRes.json();
         }
         
         const endpoints = ['claims', 'patients', 'denials', 'appeals', 'medical_records', 'payer_policies'];
         for (const ep of endpoints) {
-            const res = await fetch(`http://localhost:8000/api/${ep}`, { headers: headers });
+            const res = await fetch(`/api/${ep}`, { headers: headers });
             if (res.ok) {
                 AppState.db[ep] = await res.json();
             } else if (res.status === 401) {
@@ -4056,7 +4063,7 @@ async function submitRoleRequest() {
     if (token) headers['Authorization'] = 'Bearer ' + token;
     
     try {
-        const res = await fetch("http://localhost:8000/api/users/request-role", {
+        const res = await fetch("/api/users/request-role", {
             method: "POST",
             headers,
             body: JSON.stringify({ role: requestedRole })
@@ -4080,7 +4087,7 @@ async function checkRoleRequestStatus() {
     if (token) headers['Authorization'] = 'Bearer ' + token;
     
     try {
-        const res = await fetch("http://localhost:8000/api/users/me", { headers });
+        const res = await fetch("/api/users/me", { headers });
         if (res.ok) {
             const data = await res.json();
             sessionStorage.setItem('CLAIMSHIELD_TOKEN', data.session_token);
@@ -4112,7 +4119,7 @@ async function loadPendingRoleRequests() {
     if (token) headers['Authorization'] = 'Bearer ' + token;
     
     try {
-        const res = await fetch("http://localhost:8000/api/users/pending", { headers });
+        const res = await fetch("/api/users/pending", { headers });
         if (res.ok) {
             const data = await res.json();
             if (data.length === 0) {
@@ -4147,7 +4154,7 @@ async function approveUserRole(userId, role) {
     if (token) headers['Authorization'] = 'Bearer ' + token;
     
     try {
-        const res = await fetch(`http://localhost:8000/api/users/${userId}/approve`, {
+        const res = await fetch(`/api/users/${userId}/approve`, {
             method: "POST",
             headers,
             body: JSON.stringify({ role })
@@ -4169,7 +4176,7 @@ async function rejectUserRole(userId) {
     if (token) headers['Authorization'] = 'Bearer ' + token;
     
     try {
-        const res = await fetch(`http://localhost:8000/api/users/${userId}/reject`, {
+        const res = await fetch(`/api/users/${userId}/reject`, {
             method: "POST",
             headers
         });
