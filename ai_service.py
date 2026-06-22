@@ -1173,6 +1173,13 @@ try:
         if deadline_match:
             deadline = deadline_match.group(1).strip()
             
+        patient_match = re.search(r"Patient\s*(?:Name)?:\s*([A-Za-z]+)\s+([A-Za-z]+)", text, re.IGNORECASE)
+        first_name = "Extracted"
+        last_name = "Patient"
+        if patient_match:
+            first_name = patient_match.group(1).strip()
+            last_name = patient_match.group(2).strip()
+
         text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()[:6].upper() if text else "45897"
         
         return {
@@ -1181,7 +1188,9 @@ try:
             "cpt_code": cpt_match.group(1).strip() if cpt_match else "72148",
             "icd10_code": icd10_match.group(1).strip() if icd10_match else "M54.50",
             "denial_reason": denial_reason if denial_reason else f"Medical necessity not established (Ref: {text_hash})",
-            "appeal_deadline": deadline
+            "appeal_deadline": deadline,
+            "patient_first_name": first_name,
+            "patient_last_name": last_name
         }
 
     def extract_medical_record_details(text: str) -> Dict[str, Any]:
@@ -1303,7 +1312,7 @@ try:
                 patient_id = f"pat-{uuid.uuid4().hex[:8]}"
                 cursor.execute(
                     "INSERT INTO patients (id, first_name, last_name, date_of_birth, insurance_provider, status) VALUES (?, ?, ?, ?, ?, ?)",
-                    (patient_id, "Extracted", "Patient", "01/01/1980", extracted_data.get("payer", "Unknown"), "Active")
+                    (patient_id, extracted_data.get("patient_first_name", "Extracted"), extracted_data.get("patient_last_name", "Patient"), "01/01/1980", extracted_data.get("payer", "Unknown"), "Active")
                 )
                 
                 # Dynamically create claim
