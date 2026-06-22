@@ -1,0 +1,115 @@
+{
+  "name": "ClaimShield-W4-Submission-Tracking",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "appeal-approved-webhook",
+        "options": {}
+      },
+      "id": "node-webhook-appeal-approved",
+      "name": "Physician Approved Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://clearinghouse.healthcare-api.com/v1/appeals/submit",
+        "method": "POST",
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "claim_number",
+              "value": "={{ $json.claim_number }}"
+            },
+            {
+              "name": "document_data",
+              "value": "={{ $json.appeal_letter_text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-http-clearinghouse-submit",
+      "name": "Clearinghouse Submit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE appeals SET status = 'Submitted', submission_date = CURRENT_DATE, tracking_number = $1 WHERE id = $2;"
+      },
+      "id": "node-postgres-update-appeal",
+      "name": "Update Appeal DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [520, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE denials SET status = 'Appealed' WHERE id = $1;"
+      },
+      "id": "node-postgres-update-denial",
+      "name": "Update Denial DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [520, 400]
+    },
+    {
+      "parameters": {
+        "channel": "#appeals-tracking",
+        "text": "=✅ *Submission Successful*: Appeal for Claim *{{ $json.claim_number }}* has been submitted electronically.\n*Tracking ID*: {{ $json.tracking_number }}\n*Clearinghouse Status*: Received"
+      },
+      "id": "node-slack-post-submission",
+      "name": "Slack Submission Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Physician Approved Trigger": {
+      "main": [
+        [
+          {
+            "node": "http-clearinghouse-submit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-clearinghouse-submit": {
+      "main": [
+        [
+          {
+            "node": "Update Appeal DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Denial DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Appeal DB": {
+      "main": [
+        [
+          {
+            "node": "Slack Submission Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

@@ -1,0 +1,30 @@
+{
+  "sqlite_documents": [
+    {
+      "id": "doc-test-123",
+      "filename": "test_denial.pdf",
+      "document_type": "Denial Letter",
+      "file_path": "uploads\\test_denial.pdf",
+      "upload_date": "2026-06-20 21:04:57",
+      "status": "Uploaded",
+      "created_at": "2026-06-20 15:34:57"
+    }
+  ],
+  "app_db_state": {
+    "claims": [
+      {
+        "id": "clm-1",
+        "claim_number": "CLM-TEST",
+        "status": "Denied"
+      }
+    ],
+    "appeals": [
+      {
+        "id": "app-1",
+        "appeal_number": "APP-TEST",
+        "status": "Approved"
+      }
+    ]
+  },
+  "backup_timestamp": "2026-06-20 21:04:57"
+}

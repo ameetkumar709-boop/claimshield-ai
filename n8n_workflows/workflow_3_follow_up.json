@@ -1,0 +1,130 @@
+{
+  "name": "ClaimShield-W3-Follow-Up-Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "appeal-submitted-webhook",
+        "options": {}
+      },
+      "id": "node-webhook-appeal-submitted",
+      "name": "Appeal Filed Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "amount": 14,
+        "unit": "days"
+      },
+      "id": "node-wait-14-days",
+      "name": "Wait 14 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id AS appeal_id, a.appeal_number, a.status, c.claim_number, u.id AS owner_id FROM appeals a JOIN denials d ON a.denial_id = d.id JOIN claims c ON d.claim_id = c.id JOIN users u ON a.generated_by = u.id WHERE a.id = $1;"
+      },
+      "id": "node-postgres-check-appeal-status",
+      "name": "Check Appeal Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "value2": "Submitted"
+            }
+          ]
+        }
+      },
+      "id": "node-if-still-unresolved",
+      "name": "If Still Unresolved",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tasks (title, description, assigned_to, claim_id, due_date, priority, status) VALUES ('14-Day Appeal Follow-up Required', 'Appeal {{ $json.appeal_number }} has been submitted for 14 days without payer outcome. Call payer and verify reconsideration status.', $1, $2, CURRENT_DATE + INTERVAL '2 days', 'High', 'Pending');"
+      },
+      "id": "node-postgres-insert-followup-task",
+      "name": "Create Follow-up Task",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [950, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#appeals-tracking",
+        "text": "=⚠️ *Follow-up Alert*: Appeal *{{ $json.appeal_number }}* (Claim: {{ $json.claim_number }}) has been pending for 14 days. Creating a follow-up checklist task for resolution."
+      },
+      "id": "node-slack-post-unresolved",
+      "name": "Post Slack Reminder",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [950, 400]
+    }
+  ],
+  "connections": {
+    "Appeal Filed Webhook": {
+      "main": [
+        [
+          {
+            "node": "Wait 14 Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 14 Days": {
+      "main": [
+        [
+          {
+            "node": "Check Appeal Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Appeal Status": {
+      "main": [
+        [
+          {
+            "node": "If Still Unresolved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Still Unresolved": {
+      "main": [
+        [
+          {
+            "node": "Create Follow-up Task",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post Slack Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

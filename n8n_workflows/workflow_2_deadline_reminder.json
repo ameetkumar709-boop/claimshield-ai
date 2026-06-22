@@ -1,0 +1,88 @@
+{
+  "name": "ClaimShield-W2-Deadline-Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyDay",
+              "hour": 8
+            }
+          ]
+        }
+      },
+      "id": "node-cron-daily-trigger",
+      "name": "Daily Cron Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.claim_number, d.id AS denial_id, d.denied_amount, p.first_name || ' ' || p.last_name AS patient_name, u.email AS owner_email, u.first_name AS owner_name FROM denials d JOIN claims c ON d.claim_id = c.id JOIN patients p ON c.patient_id = p.id JOIN users u ON d.assigned_to = u.id WHERE d.status IN ('New', 'Reviewing') AND d.denial_date >= CURRENT_DATE - INTERVAL '83 days';"
+      },
+      "id": "node-postgres-select-deadlines",
+      "name": "Fetch Approaching Deadlines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@claimshield.ai",
+        "toEmail": "={{ $json.owner_email }}",
+        "subject": "=URGENT: Appeal Filing Deadline Approaching - Claim {{ $json.claim_number }}",
+        "html": "=<h3>Urgent Appeal Escalation</h3><p>Dear {{ $json.owner_name }},</p><p>This is an automated notification that the filing deadline for <strong>Claim {{ $json.claim_number }}</strong> (Patient: {{ $json.patient_name }}) is in 7 days or less.</p><p><strong>Payer Denial Amount:</strong> ${{ $json.denied_amount }}<br/>Please open the Appeal Wizard immediately to generate and submit the medical necessity package.</p><p>Thank you,<br/>ClaimShield Compliance Bot</p>"
+      },
+      "id": "node-smtp-send-reminder",
+      "name": "Send Owner Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [520, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#appeals-deadlines",
+        "text": "=<!here> *Escalation Alert*: Filing deadline warning for Claim *{{ $json.claim_number }}* (Owner: {{ $json.owner_name }}). Amount at risk: *${{ $json.denied_amount }}*."
+      },
+      "id": "node-slack-post-reminder",
+      "name": "Post Slack Channel",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [520, 400]
+    }
+  ],
+  "connections": {
+    "Daily Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Approaching Deadlines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Approaching Deadlines": {
+      "main": [
+        [
+          {
+            "node": "Send Owner Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post Slack Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

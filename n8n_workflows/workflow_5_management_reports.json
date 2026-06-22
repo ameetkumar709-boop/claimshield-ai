@@ -1,0 +1,73 @@
+{
+  "name": "ClaimShield-W5-Management-Reports",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyWeek",
+              "hour": 16,
+              "weekday": "5"
+            }
+          ]
+        }
+      },
+      "id": "node-cron-weekly-report",
+      "name": "Weekly Report Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT COUNT(*) FROM claims) AS total_claims, (SELECT COUNT(*) FROM denials) AS total_denials, (SELECT COUNT(*) FROM appeals) AS total_appeals, (SELECT COALESCE(SUM(amount_recovered), 0) FROM appeals WHERE status = 'Approved') AS recovered_revenue, (SELECT CASE WHEN COUNT(id) = 0 THEN 0.0 ELSE ROUND((COUNT(CASE WHEN status = 'Approved' THEN 1 END) * 100.0 / COUNT(id)), 1) END FROM appeals WHERE status IN ('Approved', 'Rejected')) AS approval_rate;"
+      },
+      "id": "node-postgres-select-aggregates",
+      "name": "Aggregate Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "reports@claimshield.ai",
+        "toEmail": "eleanor.vance@metrogeneral.org, board@metrogeneral.org",
+        "subject": "=ClaimShield AI Weekly Management Report - Friday Digest",
+        "html": "=<h2>ClaimShield AI - Weekly Management Digest</h2><p>Here is the weekly summary of revenue recovery and denials management operations:</p><table border='1' cellpadding='10' cellspacing='0' style='border-collapse: collapse; font-family: sans-serif; min-width: 400px;'><tr style='background-color: #0f172a; color: white;'><th>Performance Metric</th><th>Weekly Value</th></tr><tr><td>Total Active Claims</td><td>{{ $json.total_claims }}</td></tr><tr><td>Gross Denials Tracked</td><td>{{ $json.total_denials }}</td></tr><tr><td>Appeals Package Submissions</td><td>{{ $json.total_appeals }}</td></tr><tr><td>Overturn Success Rate</td><td><strong>{{ $json.approval_rate }}%</strong></td></tr><tr><td>Total Recovered Revenue</td><td><strong style='color: #10b981;'>${{ $json.recovered_revenue }}</strong></td></tr></table><br/><p>Please log in to the ClaimShield Portal to view active queues and compliance logs.</p><p>Best regards,<br/>ClaimShield Reporting System</p>"
+      },
+      "id": "node-smtp-send-report",
+      "name": "Send Exec Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [520, 300]
+    }
+  ],
+  "connections": {
+    "Weekly Report Trigger": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Metrics": {
+      "main": [
+        [
+          {
+            "node": "Send Exec Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

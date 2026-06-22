@@ -1,0 +1,96 @@
+{
+  "name": "ClaimShield-W1-Email-Intake",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "emailProperty": "text",
+        "options": {}
+      },
+      "id": "node-email-imap-trigger",
+      "name": "Email Trigger (IMAP)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/denials/intake",
+        "method": "POST",
+        "sendBinaryData": true,
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "id": "node-ocr-http-request",
+      "name": "FastAPI OCR Scanner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO denials (claim_id, denial_date, carc_code, carc_description, denied_amount, status) VALUES ($1, CURRENT_DATE, $2, $3, $4, 'New') RETURNING id;"
+      },
+      "id": "node-postgres-insert-denial",
+      "name": "Insert Denial DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#billing-alerts",
+        "text": "=*ClaimShield Alert*: New denial ingested automatically from email.\n*Claim Ref*: {{ $json.claim_number }}\n*Payer*: {{ $json.payer_name }}\n*CARC*: {{ $json.carc_code }}\n*Amount*: ${{ $json.denied_amount }}"
+      },
+      "id": "node-slack-notify-intake",
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Email Trigger (IMAP)": {
+      "main": [
+        [
+          {
+            "node": "FastAPI OCR Scanner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FastAPI OCR Scanner": {
+      "main": [
+        [
+          {
+            "node": "Insert Denial DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Denial DB": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}
