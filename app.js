@@ -2148,6 +2148,113 @@ async function runDocumentIntelligenceWorkflow() {
         const medicalExt = medicalData.extracted_data || {};
         const policyExt = policyData.extracted_data || {};
 
+        // Document Relevance and Patient Matching Validation
+        const validationErrors = [];
+
+        function normalizePayer(payer) {
+            if (!payer) return "";
+            return payer.toLowerCase()
+                        .replace(/\s+/g, '')
+                        .replace(/insurance/g, '')
+                        .replace(/healthcare/g, '')
+                        .replace(/health/g, '')
+                        .replace(/corp/g, '')
+                        .replace(/co/g, '')
+                        .replace(/inc/g, '')
+                        .replace(/[^a-z0-9]/g, '')
+                        .trim();
+        }
+
+        function normalizeName(name) {
+            if (!name) return "";
+            return name.toLowerCase()
+                       .replace(/[^a-z]/g, '')
+                       .trim();
+        }
+
+        function normalizeId(id) {
+            if (!id) return "";
+            return id.toLowerCase()
+                     .replace(/[^a-z0-9]/g, '')
+                     .trim();
+        }
+
+        const denFirstName = denialExt.patient_first_name;
+        const denLastName = denialExt.patient_last_name;
+        const medFirstName = medicalExt.patient_first_name;
+        const medLastName = medicalExt.patient_last_name;
+
+        const hasValidDenName = denFirstName && denLastName && 
+                                denFirstName.toLowerCase() !== "extracted" && 
+                                denLastName.toLowerCase() !== "patient";
+        const hasValidMedName = medFirstName && medLastName && 
+                                medFirstName.toLowerCase() !== "extracted" && 
+                                medLastName.toLowerCase() !== "patient";
+
+        if (hasValidDenName && hasValidMedName) {
+            const normDenFirst = normalizeName(denFirstName);
+            const normDenLast = normalizeName(denLastName);
+            const normMedFirst = normalizeName(medFirstName);
+            const normMedLast = normalizeName(medLastName);
+
+            if (normDenFirst !== normMedFirst || normDenLast !== normMedLast) {
+                validationErrors.push(`Patient name mismatch: Denial Letter has "${denFirstName} ${denLastName}", but Medical Record has "${medFirstName} ${medLastName}".`);
+            }
+        }
+
+        const denClaimNum = denialExt.claim_number;
+        const medClaimNum = medicalExt.claim_number;
+        if (denClaimNum && medClaimNum) {
+            const normDenClaim = normalizeId(denClaimNum);
+            const normMedClaim = normalizeId(medClaimNum);
+            if (normDenClaim !== normMedClaim) {
+                validationErrors.push(`Claim number mismatch: Denial Letter has claim "${denClaimNum}", but Medical Record has claim "${medClaimNum}".`);
+            }
+        }
+
+        const denMemberId = denialExt.member_id;
+        const medMemberId = medicalExt.member_id;
+        if (denMemberId && medMemberId) {
+            const normDenMember = normalizeId(denMemberId);
+            const normMedMember = normalizeId(medMemberId);
+            if (normDenMember !== normMedMember) {
+                validationErrors.push(`Member ID mismatch: Denial Letter has member ID "${denMemberId}", but Medical Record has member ID "${medMemberId}".`);
+            }
+        }
+
+        const denPayer = denialExt.payer;
+        const medPayer = medicalExt.payer;
+        const polPayer = policyExt.payer;
+
+        const normDenPayer = normalizePayer(denPayer);
+        
+        if (denPayer && polPayer) {
+            const normPolPayer = normalizePayer(polPayer);
+            if (normDenPayer !== normPolPayer) {
+                validationErrors.push(`Payer mismatch: Denial Letter is for "${denPayer}", but Policy is for "${polPayer}".`);
+            }
+        }
+
+        if (denPayer && medPayer) {
+            const normMedPayer = normalizePayer(medPayer);
+            if (normDenPayer !== normMedPayer) {
+                validationErrors.push(`Payer mismatch: Denial Letter is for "${denPayer}", but Medical Record is for "${medPayer}".`);
+            }
+        }
+
+        if (validationErrors.length > 0) {
+            const errorMessage = "❌ Document Validation Failed!\n\nThe selected documents contain mismatched information and cannot be processed together:\n\n" + 
+                                 validationErrors.map(e => "• " + e).join("\n") + 
+                                 "\n\nPlease ensure all uploaded documents belong to the same patient and insurance plan.";
+            alert(errorMessage);
+            
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+            return;
+        }
+
         // Cache in AppState
         AppState.intelDenial = denialExt;
         AppState.intelMedical = medicalExt;

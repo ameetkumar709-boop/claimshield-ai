@@ -1180,6 +1180,9 @@ try:
             first_name = patient_match.group(1).strip()
             last_name = patient_match.group(2).strip()
 
+        member_match = re.search(r"Member\s*(?:ID)?:\s*([^\s\n,;]+)", text, re.IGNORECASE)
+        member_id = member_match.group(1).strip() if member_match else None
+
         text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()[:6].upper() if text else "45897"
         
         return {
@@ -1190,7 +1193,8 @@ try:
             "denial_reason": denial_reason if denial_reason else f"Medical necessity not established (Ref: {text_hash})",
             "appeal_deadline": deadline,
             "patient_first_name": first_name,
-            "patient_last_name": last_name
+            "patient_last_name": last_name,
+            "member_id": member_id
         }
 
     def extract_medical_record_details(text: str) -> Dict[str, Any]:
@@ -1231,6 +1235,22 @@ try:
         if diag_match:
             diagnoses = [diag_match.group(1).strip()]
             
+        patient_match = re.search(r"Patient\s*(?:Name)?:\s*([A-Za-z]+)\s+([A-Za-z]+)", text, re.IGNORECASE)
+        first_name = "Extracted"
+        last_name = "Patient"
+        if patient_match:
+            first_name = patient_match.group(1).strip()
+            last_name = patient_match.group(2).strip()
+
+        claim_match = re.search(r"Claim\s+(?:Number|#):\s*([^\s\n,;]+)", text, re.IGNORECASE)
+        claim_num = claim_match.group(1).strip() if claim_match else None
+
+        payer_match = re.search(r"HEALTHFIRST INSURANCE|Aetna|BCBS|UnitedHealthcare", text, re.IGNORECASE)
+        payer = payer_match.group(0).strip() if payer_match else None
+
+        member_match = re.search(r"Member\s*(?:ID)?:\s*([^\s\n,;]+)", text, re.IGNORECASE)
+        member_id = member_match.group(1).strip() if member_match else None
+
         text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()[:6].upper() if text else "45897"
             
         return {
@@ -1238,7 +1258,12 @@ try:
             "symptoms": symptoms if symptoms else [f"Persistent low back pain (Ref {text_hash})"],
             "failed_treatments": treatments if treatments else ["Physical Therapy (8 weeks)", "Medication Therapy (Ibuprofen)", "Home Exercise Program"],
             "neurological_findings": neuro if neuro else ["Numbness", "Tingling in right foot"],
-            "physician_recommendation": recommendation
+            "physician_recommendation": recommendation,
+            "patient_first_name": first_name,
+            "patient_last_name": last_name,
+            "payer": payer,
+            "claim_number": claim_num,
+            "member_id": member_id
         }
 
     def extract_policy_details(text: str) -> Dict[str, Any]:
@@ -1263,6 +1288,9 @@ try:
                 if line:
                     exclusions.append(line)
                     
+        payer_match = re.search(r"HEALTHFIRST INSURANCE|Aetna|BCBS|UnitedHealthcare", text, re.IGNORECASE)
+        payer = payer_match.group(0).strip() if payer_match else None
+
         text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()[:6].upper() if text else "45897"
                     
         return {
@@ -1276,7 +1304,8 @@ try:
                 "Treatment history",
                 "Physician recommendation"
             ],
-            "exclusions": exclusions if exclusions else [f"Elective diagnostics without clinical indicators (Pol-{text_hash})"]
+            "exclusions": exclusions if exclusions else [f"Elective diagnostics without clinical indicators (Pol-{text_hash})"],
+            "payer": payer
         }
 
     # Background task simulating document classification and analysis stages
