@@ -788,27 +788,31 @@ function drawDashboardCharts() {
     if (!chartBox) return;
     
     // Draw visual bars
-    const denials = AppState.db.denials;
-    const appeals = AppState.db.appeals;
+    const denials = AppState.db.denials || [];
+    const claims = AppState.db.claims || [];
     
-    const countAetna = denials.filter(d => {
-        const claim = AppState.db.claims.find(c => c.id === d.claim_id);
-        const payer = claim ? claim.payer_name : "";
-        return payer === 'Aetna' || (d.payer_notes && d.payer_notes.includes("Aetna")) || d.claim_id === "clm-1";
-    }).length;
-    const countUHC = denials.filter(d => {
-        const claim = AppState.db.claims.find(c => c.id === d.claim_id);
-        const payer = claim ? claim.payer_name : "";
-        return payer === 'UnitedHealthcare' || d.carc_code === 'CO-197';
-    }).length;
-    const countBCBS = denials.filter(d => {
-        const claim = AppState.db.claims.find(c => c.id === d.claim_id);
-        const payer = claim ? claim.payer_name : "";
-        return payer === 'BCBS' || d.claim_id === "clm-3";
-    }).length;
+    // Dynamic real-time count by payer
+    let countHealthFirst = 0;
+    let countUHC = 0;
+    let countAetna = 0;
     
-    const maxVal = Math.max(countAetna, countUHC, countBCBS, 1);
+    denials.forEach(d => {
+        const claim = claims.find(c => c.id === d.claim_id);
+        if (claim && claim.payer_name) {
+            const payer = claim.payer_name.toUpperCase();
+            if (payer.includes("HEALTHFIRST")) {
+                countHealthFirst++;
+            } else if (payer.includes("UNITEDHEALTHCARE") || payer.includes("UHC")) {
+                countUHC++;
+            } else if (payer.includes("AETNA")) {
+                countAetna++;
+            }
+        } else if (d.payer_notes && d.payer_notes.toUpperCase().includes("AETNA")) {
+            countAetna++;
+        }
+    });
     
+    const maxVal = Math.max(countHealthFirst, countUHC, countAetna, 1);
     const scale = (val) => (val / maxVal) * 160; // Max height 160px
     
     chartBox.innerHTML = `
@@ -820,22 +824,22 @@ function drawDashboardCharts() {
             <line x1="40" y1="180" x2="380" y2="180" stroke="rgba(255,255,255,0.1)" />
             
             <!-- Bars -->
-            <!-- Aetna -->
-            <rect x="75" y="${180 - scale(countAetna)}" width="45" height="${scale(countAetna)}" fill="url(#grad-teal)" rx="4" />
-            <text x="97.5" y="${170 - scale(countAetna)}" fill="#fff" font-size="10" text-anchor="middle" font-weight="600">${countAetna}</text>
+            <!-- HealthFirst -->
+            <rect x="75" y="${180 - scale(countHealthFirst)}" width="45" height="${scale(countHealthFirst)}" fill="url(#grad-teal)" rx="4" />
+            <text x="97.5" y="${170 - scale(countHealthFirst)}" fill="#fff" font-size="10" text-anchor="middle" font-weight="600">${countHealthFirst}</text>
             
             <!-- UHC -->
             <rect x="175" y="${180 - scale(countUHC)}" width="45" height="${scale(countUHC)}" fill="url(#grad-indigo)" rx="4" />
             <text x="197.5" y="${170 - scale(countUHC)}" fill="#fff" font-size="10" text-anchor="middle" font-weight="600">${countUHC}</text>
             
-            <!-- BCBS -->
-            <rect x="275" y="${180 - scale(countBCBS)}" width="45" height="${scale(countBCBS)}" fill="url(#grad-amber)" rx="4" />
-            <text x="297.5" y="${170 - scale(countBCBS)}" fill="#fff" font-size="10" text-anchor="middle" font-weight="600">${countBCBS}</text>
+            <!-- Aetna -->
+            <rect x="275" y="${180 - scale(countAetna)}" width="45" height="${scale(countAetna)}" fill="url(#grad-amber)" rx="4" />
+            <text x="297.5" y="${170 - scale(countAetna)}" fill="#fff" font-size="10" text-anchor="middle" font-weight="600">${countAetna}</text>
             
             <!-- Labels -->
-            <text x="97.5" y="200" fill="var(--text-secondary)" font-size="10" text-anchor="middle">Aetna</text>
+            <text x="97.5" y="200" fill="var(--text-secondary)" font-size="10" text-anchor="middle">HealthFirst</text>
             <text x="197.5" y="200" fill="var(--text-secondary)" font-size="10" text-anchor="middle">UnitedHealthcare</text>
-            <text x="297.5" y="200" fill="var(--text-secondary)" font-size="10" text-anchor="middle">BCBS</text>
+            <text x="297.5" y="200" fill="var(--text-secondary)" font-size="10" text-anchor="middle">Aetna</text>
             
             <!-- Gradients -->
             <defs>
