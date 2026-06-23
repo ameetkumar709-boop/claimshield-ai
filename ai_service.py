@@ -1200,6 +1200,7 @@ try:
             "appeal_deadline": deadline,
             "patient_first_name": first_name,
             "patient_last_name": last_name,
+            "patient_name": f"{first_name} {last_name}",
             "member_id": member_id,
             "policy_reference": policy_ref,
             "provider": provider
@@ -1272,6 +1273,7 @@ try:
             "physician_recommendation": recommendation,
             "patient_first_name": first_name,
             "patient_last_name": last_name,
+            "patient_name": f"{first_name} {last_name}",
             "payer": payer,
             "claim_number": claim_num,
             "member_id": member_id,

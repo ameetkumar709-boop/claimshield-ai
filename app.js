@@ -1156,7 +1156,7 @@ async function handleUploadedFile(file) {
                         metadata: {
                             claim_number: extData.claim_number || "Extracted-" + docId,
                             payer: extData.payer || "Unknown Payer",
-                            patient: extData.patient_name || "Extracted Patient",
+                            patient: extData.patient_name || (extData.patient_first_name && extData.patient_last_name ? (extData.patient_first_name + " " + extData.patient_last_name) : "Extracted Patient"),
                             cpt_code: extData.cpt_code || "",
                             icd10_code: extData.icd10_code || "",
                             denial_reason: extData.denial_reason || "Medical necessity not established.",
