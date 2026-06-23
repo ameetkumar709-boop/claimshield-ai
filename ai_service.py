@@ -1183,6 +1183,12 @@ try:
         member_match = re.search(r"Member\s*(?:ID)?:\s*([^\s\n,;]+)", text, re.IGNORECASE)
         member_id = member_match.group(1).strip() if member_match else None
 
+        policy_ref_match = re.search(r"Policy\s+([A-Z0-9\-]+(?:\s+Section\s+[0-9\.]+)?)", text, re.IGNORECASE)
+        policy_ref = policy_ref_match.group(1).strip() if policy_ref_match else "MSK-2026-LSP Section 4.2"
+
+        provider_match = re.search(r"Provider:\s*([^\n\r]+)", text, re.IGNORECASE)
+        provider = provider_match.group(1).strip() if provider_match else None
+
         text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()[:6].upper() if text else "45897"
         
         return {
@@ -1194,7 +1200,9 @@ try:
             "appeal_deadline": deadline,
             "patient_first_name": first_name,
             "patient_last_name": last_name,
-            "member_id": member_id
+            "member_id": member_id,
+            "policy_reference": policy_ref,
+            "provider": provider
         }
 
     def extract_medical_record_details(text: str) -> Dict[str, Any]:
@@ -1251,6 +1259,9 @@ try:
         member_match = re.search(r"Member\s*(?:ID)?:\s*([^\s\n,;]+)", text, re.IGNORECASE)
         member_id = member_match.group(1).strip() if member_match else None
 
+        provider_match = re.search(r"Provider:\s*([^\n\r]+)", text, re.IGNORECASE)
+        provider = provider_match.group(1).strip() if provider_match else "Dr. Sarah Mitchell"
+
         text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()[:6].upper() if text else "45897"
             
         return {
@@ -1263,7 +1274,8 @@ try:
             "patient_last_name": last_name,
             "payer": payer,
             "claim_number": claim_num,
-            "member_id": member_id
+            "member_id": member_id,
+            "provider": provider
         }
 
     def extract_policy_details(text: str) -> Dict[str, Any]:
@@ -1766,6 +1778,14 @@ try:
         icd10 = denial.get("icd10_code", "M54.50")
         denial_reason = denial.get("denial_reason", "Medical necessity not established")
         
+        patient_first = denial.get("patient_first_name") or medical.get("patient_first_name") or "John"
+        patient_last = denial.get("patient_last_name") or medical.get("patient_last_name") or "Anderson"
+        patient_name = f"{patient_first} {patient_last}"
+        
+        policy_ref = denial.get("policy_reference") or "MSK-2026-LSP Section 4.2"
+        physician = medical.get("provider") or "Dr. Sarah Mitchell"
+        clinic = denial.get("provider") or "Sunrise Orthopedic Clinic"
+        
         diagnoses = ", ".join(medical.get("diagnoses", ["Chronic lumbar radiculopathy"]))
         symptoms = ", ".join(medical.get("symptoms", []))
         txs = ", ".join(medical.get("failed_treatments", []))
@@ -1773,36 +1793,36 @@ try:
         phys_rec = medical.get("physician_recommendation", "Recommend MRI Lumbar Spine")
         
         appeal_text = f"""RE: Formal Appeal of Denied Service
-Patient Name: John Anderson
+Patient Name: {patient_name}
 Claim Number: {claim_num}
-CPT Code: {cpt} (MRI Lumbar Spine)
+CPT Code: {cpt} (MRI Spine)
 Diagnosis Code: {icd10} ({diagnoses})
 Target Insurer: {payer}
 
 Dear Appeals Committee,
 
-I am writing to formally appeal the denial of coverage for the requested service (CPT Code {cpt}: MRI Lumbar Spine Without Contrast) for our patient, John Anderson. The denial notice dated recently cites the following reason:
+I am writing to formally appeal the denial of coverage for the requested service (CPT Code {cpt}) for our patient, {patient_name}. The denial notice dated recently cites the following reason:
 
 "{denial_reason}"
 
-We respectfully submit that the patient fully meets the coverage criteria specified under policy guideline MSK-2026-LSP Section 4.2. Below, we provide clear clinical evidence mapping patient history directly to your authorization requirements:
+We respectfully submit that the patient fully meets the coverage criteria specified under policy guideline {policy_ref}. Below, we provide clear clinical evidence mapping patient history directly to your authorization requirements:
 
-1. Symptom Duration: Policy requires symptoms to persist for six weeks or longer. Our clinical notes demonstrate the patient has experienced persistent symptoms ({symptoms}) for approximately four months, well exceeding the threshold.
+1. Symptom Duration: Policy requires symptoms to persist for six weeks or longer. Our clinical notes demonstrate the patient has experienced persistent symptoms ({symptoms}), well exceeding the threshold.
 
 2. Failed Conservative Treatments: Policy requires failure of conservative treatment, including physical therapy, medication, or home exercise. The patient's history shows completion and failure of multiple measures:
    - Failed treatments: {txs}
-   - Despite these efforts, the patient reports lumbar pain rated 8/10.
+   - Despite these efforts, the patient continues to experience significant symptoms.
 
 3. Neurological Findings: Policy requires documented neurological findings such as numbness, tingling, weakness, or radicular pain. Patient exhibits: {neuros}.
 
-4. Clinical Recommendation: Dr. Sarah Mitchell has documented the medical necessity for this scan: "{phys_rec}".
+4. Clinical Recommendation: {physician} has documented the medical necessity for this scan: "{phys_rec}".
 
 Based on these documented clinical facts, the patient satisfies all medical necessity requirements. We request that {payer} immediately reverse its decision and authorize coverage for CPT {cpt}.
 
 Sincerely,
-Sunrise Orthopedic Clinic Clinical Department
+{clinic} Clinical Department
 """
-        return {"appeal_letter": appeal_text}
+        return {"appeal_letter": appeal_text.strip()}
 
     @app.get("/api/documents")
     def api_list_documents(user: dict = Depends(verify_auth_token)):
